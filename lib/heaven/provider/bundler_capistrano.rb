@@ -41,10 +41,12 @@ module Heaven
 
         Dir.chdir(unpacked_directory) do
           Bundler.with_clean_env do
-            if bundler_private_source.present? && bundler_private_credentials.present?
-              bundler_config_string = ["bundle", "config", bundler_private_source, bundler_private_credentials]
-              log "Adding bundler config"
-              execute_and_log(bundler_config_string)
+            unless bundler_private_sources.empty?
+              bundler_private_sources.each do |source, credentials|
+                bundler_config_string = ["bundle", "config", source, credentials]
+                log "Adding bundler config"
+                execute_and_log(bundler_config_string)
+              end
             end
 
             bundler_string = ["bundle", "install", "--without", ignored_groups.join(" ")]
@@ -69,12 +71,14 @@ module Heaven
         Bundler::Definition.build(gemfile_path, lockfile_path, nil)
       end
 
-      def bundler_private_source
-        ENV["BUNDLER_PRIVATE_SOURCE"]
-      end
+      def bundler_private_sources
+        sources = Hash.new
+        ENV.each_pair do |name, value|
+          next unless name.starts_with?('BUNDLE_') && name.include?('__')
 
-      def bundler_private_credentials
-        ENV["BUNDLER_PRIVATE_CREDENTIALS"]
+          sources[name] = value
+        end
+        sources
       end
     end
   end
